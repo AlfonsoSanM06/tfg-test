@@ -23,7 +23,7 @@ spec:
 
   source:
     repoURL: https://github.com/AlfonsoSanM06/tfg-test
-    targetRevision: main
+    targetRevision: master
     path: k8s-cluster/wordpress/wordpress-mysql
 
     helm:

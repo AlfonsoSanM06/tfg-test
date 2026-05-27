@@ -23,7 +23,7 @@ spec:
 
   source:
     repoURL: https://github.com/AlfonsoSanM06/tfg-test
-    targetRevision: main
+    targetRevision: master
     # Directorio que contiene todos los Application CRDs
     path: k8s-cluster/argocd-apps
 
