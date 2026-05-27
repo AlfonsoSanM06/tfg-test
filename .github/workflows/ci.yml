@@ -1,0 +1,28 @@
+name: Workflow-Validations
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+    paths-ignore: [ "**.md" ]
+
+jobs:
+  validate-terraform:
+    name: validar Terraform
+    runs-on: ubuntu-latest
+    steps:
+      - name: descargar codigo
+        uses: actions/checkout@v4
+
+      - name: instalar terraform
+        uses: hashicorp/setup-terraform@v3
+        
+      - name: terraform Init
+        run: terraform init -backend=false
+        working-directory: ./terraform-proxmox
+
+      - name: terraform validate
+        run: terraform validate
+        working-directory: ./terraform-proxmox
+        
