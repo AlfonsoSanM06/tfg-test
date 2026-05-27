@@ -139,12 +139,10 @@ mysql-subchart:
   mysql:
     database: wordpress
     user: wordpress
-    # Las passwords NO se definen aquí.
-    # Se inyectan desde el SealedSecret 'wordpress-mysql-secrets'
-    # que ArgoCD despliega desde k8s-cluster/argocd-apps/03-sealed-secret.yaml
-    # El subchart lee el Secret via secretKeyRef en el Deployment.
-    password: ""      # Placeholder — se sobreescribe por el SealedSecret
-    rootPassword: ""  # Placeholder — se sobreescribe por el SealedSecret
+    # Contraseñas para entorno Minikube/lab.
+    # En producción (K3s): dejar vacías y usar el SealedSecret + existingSecret.
+    password: "1234"
+    rootPassword: "1234"
 
   persistence:
     enabled: true
