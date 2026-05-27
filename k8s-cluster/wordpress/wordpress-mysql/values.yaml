@@ -73,7 +73,7 @@ wordpress:
 
 # ServiceMonitor para Prometheus (monitorización de mysql-exporter)
 serviceMonitor:
-  enabled: true
+  enabled: false             # Requiere Prometheus Operator. Activar en K3s+prod.
   namespace: ""              # Si vacío se usa global.namespace
   releaseLabel: "alfonso-monitor"
   interval: 30s
