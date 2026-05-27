@@ -1,28 +1,87 @@
-name: Workflow-Validations
+name: CI — Validación Kubernetes & Helm
 
 on:
   push:
-    branches: [ main ]
+    branches: [ master, main ]
   pull_request:
-    branches: [ main ]
+    branches: [ master, main ]
     paths-ignore: [ "**.md" ]
 
 jobs:
-  validate-terraform:
-    name: validar Terraform
+  # ─────────────────────────────────────────────
+  # JOB 1: Lint y template del chart Helm
+  # ─────────────────────────────────────────────
+  helm-lint:
+    name: Helm Lint & Template
     runs-on: ubuntu-latest
     steps:
-      - name: descargar codigo
+      - name: Descargar código
         uses: actions/checkout@v4
 
-      - name: instalar terraform
-        uses: hashicorp/setup-terraform@v3
-        
-      - name: terraform Init
-        run: terraform init -backend=false
-        working-directory: ./terraform-proxmox
+      - name: Instalar Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: "3.14.4"
 
-      - name: terraform validate
-        run: terraform validate
-        working-directory: ./terraform-proxmox
-        
+      - name: Actualizar dependencias del chart
+        run: helm dependency update .
+        working-directory: k8s-cluster/wordpress/wordpress-mysql
+
+      - name: Helm lint (detecta errores de sintaxis)
+        run: helm lint . --strict
+        working-directory: k8s-cluster/wordpress/wordpress-mysql
+
+      - name: Helm template (renderiza manifiestos y verifica su validez)
+        run: |
+          helm template wordpress-arq3d . \
+            --namespace wp \
+            --set global.storageClass=standard \
+            --set global.environment=ci \
+            --set mysql-subchart.mysql.password=test \
+            --set mysql-subchart.mysql.rootPassword=test \
+            > /tmp/rendered.yaml
+          echo "✅ Chart renderizado correctamente"
+        working-directory: k8s-cluster/wordpress/wordpress-mysql
+
+  # ─────────────────────────────────────────────
+  # JOB 2: Validar manifiestos YAML de ArgoCD
+  # ─────────────────────────────────────────────
+  validate-manifests:
+    name: Validar Manifiestos ArgoCD
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar código
+        uses: actions/checkout@v4
+
+      - name: Instalar kubeconform (validador de esquemas Kubernetes)
+        run: |
+          curl -sL https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz \
+            | tar xz -C /usr/local/bin
+
+      - name: Validar manifiestos de ArgoCD Apps
+        run: |
+          kubeconform \
+            -schema-location default \
+            -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
+            -summary \
+            -skip SealedSecret \
+            k8s-cluster/argocd-apps/00-appproject.yaml \
+            k8s-cluster/argocd-apps/01-root-app.yaml \
+            k8s-cluster/argocd-apps/02-wordpress-app.yaml
+
+  # ─────────────────────────────────────────────
+  # JOB 3: Seguridad — escaneo de secretos en el código
+  # ─────────────────────────────────────────────
+  security-scan:
+    name: Escaneo de Secretos
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar código
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # Necesario para escanear todo el historial
+
+      - name: Detectar secretos expuestos (gitleaks)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
